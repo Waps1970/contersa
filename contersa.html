@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONTERSA - Sistema de Tickets</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- FontAwesome 6 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- SheetJS para exportar Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --primary-red: #dc3545;
+            --primary-blue: #0d6efd;
+            --secondary-gray: #6c757d;
+            --light-bg: #f8f9fa;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--light-bg) 0%, #e9ecef 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+            color: var(--primary-red) !important;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, var(--primary-blue), #0056b3);
+            border: none;
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, var(--primary-red), #b02a37);
+            border: none;
+        }
+
+        .card {
+            border: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        }
+
+        .ticket-card {
+            border-left: 4px solid var(--primary-blue);
+        }
+
+        .priority-alta {
+            border-left-color: var(--primary-red) !important;
+        }
+
+        .priority-media {
+            border-left-color: #ffc107 !important;
+        }
+
+        .priority-baja {
+            border-left-color: #28a745 !important;
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, white 0%, #f8f9fa 100%);
+        }
+
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-card {
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo-section h1 {
+            color: var(--primary-red);
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .logo-section p {
+            color: var(--secondary-gray);
+            font-size: 0.9rem;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+
+        .badge {
+            font-size: 0.75rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #ticketChart {
+            max-height: 300px;
+        }
+
+        .floating-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <!-- Pantalla de Login -->
+    <div id="loginScreen" class="login-container">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card auth-card">
+                        <div class="card-body p-4">
+                            <div class="logo-section">
+                                <h1><i class="fas fa-bus text-danger me-2"></i>CONTERSA</h1>
+                                <p>Sistema de Gestión de Tickets de Transporte</p>
+                            </div>
+                            
+                            <!-- Login Form -->
+                            <div id="loginForm">
+                                <h4 class="text-center mb-4">Iniciar Sesión</h4>
+                                <form id="loginFormElement">
+                                    <div class="mb-3">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="loginEmail" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Contraseña</label>
+                                        <input type="password" class="form-control" id="loginPassword" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100 mb-3">
+                                        <i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión
+                                    </button>
+                                </form>
+                                <div class="text-center">
+                                    <button class="btn btn-link p-0 me-3" onclick="showRegisterForm()">Registrarse</button>
+                                    <button class="btn btn-link p-0" onclick="showForgotPasswordForm()">¿Olvidaste tu contraseña?</button>
+                                </div>
+                            </div>
+                            
+                            <!-- Register Form -->
+                            <div id="registerForm" class="hidden">
+                                <h4 class="text-center mb-4">Registro de Empleado</h4>
+                                <form id="registerFormElement">
+                                    <div class="mb-3">
+                                        <label class="form-label">Nombre Completo</label>
+                                        <input type="text" class="form-control" id="registerName" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="registerEmail" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Contraseña</label>
+                                        <input type="password" class="form-control" id="registerPassword" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100 mb-3">
+                                        <i class="fas fa-user-plus me-2"></i>Registrarse
+                                    </button>
+                                </form>
+                                <div class="text-center">
+                                    <button class="btn btn-link p-0" onclick="showLoginForm()">¿Ya tienes cuenta? Inicia sesión</button>
+                                </div>
+                            </div>
+                            
+                            <!-- Forgot Password Form -->
+                            <div id="forgotPasswordForm" class="hidden">
+                                <h4 class="text-center mb-4">Recuperar Contraseña</h4>
+                                <form id="forgotPasswordFormElement">
+                                    <div class="mb-3">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="forgotEmail" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100 mb-3">
+                                        <i class="fas fa-envelope me-2"></i>Enviar Instrucciones
+                                    </button>
+                                </form>
+                                <div class="text-center">
+                                    <button class="btn btn-link p-0" onclick="showLoginForm()">Volver al Login</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aplicación Principal -->
+    <div id="mainApp" class="hidden">
+        <!-- Navbar -->
+        <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+            <div class="container">
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-bus text-danger me-2"></i>CONTERSA
+                </a>
+                <div class="navbar-nav ms-auto">
+                    <span class="navbar-text me-3">
+                        <i class="fas fa-user me-1"></i><span id="currentUser">Usuario</span>
+                    </span>
+                    <button class="btn btn-outline-danger btn-sm" onclick="logout()">
+                        <i class="fas fa-sign-out-alt me-1"></i>Salir
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container py-4">
+            <!-- Estadísticas -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card stats-card">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="fas fa-chart-bar text-primary me-2"></i>Estadísticas por Prioridad
+                            </h5>
+                            <canvas id="ticketChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card stats-card">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="fas fa-info-circle text-info me-2"></i>Resumen
+                            </h5>
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <h3 class="text-primary" id="totalTickets">0</h3>
+                                    <small class="text-muted">Total Tickets</small>
+                                </div>
+                                <div class="col-4">
+                                    <h3 class="text-success" id="openTickets">0</h3>
+                                    <small class="text-muted">Abiertos</small>
+                                </div>
+                                <div class="col-4">
+                                    <h3 class="text-secondary" id="closedTickets">0</h3>
+                                    <small class="text-muted">Cerrados</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3><i class="fas fa-ticket-alt text-primary me-2"></i>Gestión de Tickets</h3>
+                        <div>
+                            <button class="btn btn-success me-2" onclick="exportToExcel()">
+                                <i class="fas fa-file-excel me-2"></i>Exportar Excel
+                            </button>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#ticketModal">
+                                <i class="fas fa-plus me-2"></i>Nuevo Ticket
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lista de Tickets -->
+            <div class="row" id="ticketsContainer">
+                <!-- Los tickets se cargarán aquí dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Crear/Editar Ticket -->
+    <div class="modal fade" id="ticketModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-ticket-alt me-2"></i>Nuevo Ticket de Transporte
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="ticketForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Título de Solicitud *</label>
+                                <input type="text" class="form-control" id="ticketTitle" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Prioridad *</label>
+                                <select class="form-control" id="ticketPriority" required>
+                                    <option value="">Seleccionar prioridad</option>
+                                    <option value="Alta">Alta</option>
+                                    <option value="Media">Media</option>
+                                    <option value="Baja">Baja</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Descripción del Pedido *</label>
+                            <textarea class="form-control" id="ticketDescription" rows="3" required></textarea>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nombre del Cliente *</label>
+                                <input type="text" class="form-control" id="ticketClient" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Estado *</label>
+                                <select class="form-control" id="ticketStatus" required>
+                                    <option value="Abierto">Abierto</option>
+                                    <option value="Cerrado">Cerrado</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Destino y Origen de Viaje *</label>
+                            <input type="text" class="form-control" id="ticketRoute" placeholder="Ej: México DF - Puebla" required>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Tipo de Bus *</label>
+                                <select class="form-control" id="ticketBusType" required>
+                                    <option value="">Seleccionar tipo</option>
+                                    <option value="Escolar">Escolar</option>
+                                    <option value="Turismo">Turismo</option>
+                                    <option value="Camioneta">Camioneta</option>
+                                    <option value="Bus con Sanitario">Bus con Sanitario</option>
+                                    <option value="Microbus">Microbus</option>
+                                    <option value="Bus Ejecutivo">Bus Ejecutivo</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Estado de Solicitud</label>
+                                <input type="text" class="form-control" id="ticketRequestStatus" placeholder="Ej: En proceso, Confirmado">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveTicket()">
+                        <i class="fas fa-save me-2"></i>Guardar Ticket
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Funciones globales que deben estar disponibles antes de Firebase -->
+    <script>
+        // Variables globales
+        let ticketsData = [];
+        let ticketChart = null;
+        let ticketCounter = 1;
+        let auth, db, firebaseModules;
+
+        // Funciones de navegación entre formularios
+        function showRegisterForm() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.remove('hidden');
+            document.getElementById('forgotPasswordForm').classList.add('hidden');
+        }
+
+        function showLoginForm() {
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('forgotPasswordForm').classList.add('hidden');
+        }
+
+        function showForgotPasswordForm() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('forgotPasswordForm').classList.remove('hidden');
+        }
+
+        // Función para mostrar alertas
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertDiv);
+
+            setTimeout(() => {
+                if (alertDiv && alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        }
+
+        function showMainApp(user) {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('currentUser').textContent = user.email;
+            loadTickets();
+            initChart();
+        }
+    </script>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCOfq9ZMKD7ZuqTznoMZVFVGlXA6A5YVUM",
+            authDomain: "tickets-b9522.firebaseapp.com",
+            projectId: "tickets-b9522",
+            storageBucket: "tickets-b9522.firebasestorage.app",
+            messagingSenderId: "343346428995",
+            appId: "1:343346428995:web:c4bc6893c4708f1fa8e8f6"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        // Hacer disponibles los módulos globalmente
+        firebaseModules = {
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            sendPasswordResetEmail,
+            onAuthStateChanged,
+            signOut,
+            collection,
+            addDoc,
+            getDocs,
+            deleteDoc,
+            doc,
+            updateDoc,
+            query,
+            orderBy
+        };
+
+        // Verificar estado de autenticación
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                showMainApp(user);
+            } else {
+                showLoginScreen();
+            }
+        });
+
+        // Login
+        document.getElementById('loginFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                showAlert('¡Bienvenido! Sesión iniciada correctamente.', 'success');
+            } catch (error) {
+                showAlert('Error al iniciar sesión: ' + error.message, 'danger');
+            }
+        });
+
+        // Registro
+        document.getElementById('registerFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const name = document.getElementById('registerName').value;
+
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                showAlert('¡Registro exitoso! Ya puedes iniciar sesión.', 'success');
+                showLoginForm();
+            } catch (error) {
+                showAlert('Error en el registro: ' + error.message, 'danger');
+            }
+        });
+
+        // Recuperar contraseña
+        document.getElementById('forgotPasswordFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('forgotEmail').value;
+
+            try {
+                await sendPasswordResetEmail(auth, email);
+                showAlert('Se han enviado las instrucciones a tu correo electrónico.', 'info');
+                showLoginForm();
+            } catch (error) {
+                showAlert('Error al enviar el correo: ' + error.message, 'danger');
+            }
+        });
+
+        // Logout
+        window.logout = async function() {
+            try {
+                await signOut(auth);
+                showAlert('Sesión cerrada correctamente.', 'info');
+            } catch (error) {
+                showAlert('Error al cerrar sesión: ' + error.message, 'danger');
+            }
+        }
+
+        // Guardar ticket
+        window.saveTicket = async function() {
+            const ticket = {
+                folio: `TRANSPORTE-${String(ticketCounter).padStart(3, '0')}`,
+                title: document.getElementById('ticketTitle').value,
+                description: document.getElementById('ticketDescription').value,
+                priority: document.getElementById('ticketPriority').value,
+                status: document.getElementById('ticketStatus').value,
+                client: document.getElementById('ticketClient').value,
+                route: document.getElementById('ticketRoute').value,
+                busType: document.getElementById('ticketBusType').value,
+                requestStatus: document.getElementById('ticketRequestStatus').value,
+                createdAt: new Date(),
+                createdBy: auth.currentUser.email
+            };
+
+            try {
+                await addDoc(collection(db, 'tickets'), ticket);
+                ticketCounter++;
+                
+                const modal = bootstrap.Modal.getInstance(document.getElementById('ticketModal'));
+                modal.hide();
+                document.getElementById('ticketForm').reset();
+                
+                showAlert('Ticket creado exitosamente con folio: ' + ticket.folio, 'success');
+                loadTickets();
+            } catch (error) {
+                showAlert('Error al crear el ticket: ' + error.message, 'danger');
+            }
+        }
+
+        // Cargar tickets
+        async function loadTickets() {
+            try {
+                const querySnapshot = await getDocs(query(collection(db, 'tickets'), orderBy('createdAt', 'desc')));
+                ticketsData = [];
+                
+                querySnapshot.forEach((doc) => {
+                    ticketsData.push({ id: doc.id, ...doc.data() });
+                });
+
+                renderTickets();
+                updateStats();
+                updateChart();
+            } catch (error) {
+                showAlert('Error al cargar los tickets: ' + error.message, 'danger');
+            }
+        }
+
+        // Renderizar tickets
+        function renderTickets() {
+            const container = document.getElementById('ticketsContainer');
+            container.innerHTML = '';
+
+            if (ticketsData.length === 0) {
+                container.innerHTML = `
+                    <div class="col-12">
+                        <div class="text-center py-5">
+                            <i class="fas fa-ticket-alt fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No hay tickets registrados</h5>
+                            <p class="text-muted">Crea tu primer ticket haciendo clic en "Nuevo Ticket"</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            ticketsData.forEach(ticket => {
+                const priorityClass = `priority-${ticket.priority.toLowerCase()}`;
+                const statusBadge = ticket.status === 'Abierto' ? 'bg-success' : 'bg-secondary';
+                
+                const ticketCard = `
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card ticket-card ${priorityClass}">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <strong class="text-primary">${ticket.folio}</strong>
+                                <span class="badge ${statusBadge}">${ticket.status}</span>
+                            </div>
+                            <div class="card-body">
+                                <h6 class="card-title">${ticket.title}</h6>
+                                <p class="card-text text-muted small">${ticket.description}</p>
+                                
+                                <div class="row text-center mb-3">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Prioridad</small>
+                                        <span class="badge bg-${ticket.priority === 'Alta' ? 'danger' : ticket.priority === 'Media' ? 'warning' : 'success'}">${ticket.priority}</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Tipo Bus</small>
+                                        <small><strong>${ticket.busType}</strong></small>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-2">
+                                    <small class="text-muted">Cliente:</small>
+                                    <div><strong>${ticket.client}</strong></div>
+                                </div>
+                                
+                                <div class="mb-2">
+                                    <small class="text-muted">Ruta:</small>
+                                    <div><i class="fas fa-route me-1"></i>${ticket.route}</div>
+                                </div>
+                                
+                                ${ticket.requestStatus ? `
+                                <div class="mb-2">
+                                    <small class="text-muted">Estado Solicitud:</small>
+                                    <div><span class="badge bg-info">${ticket.requestStatus}</span></div>
+                                </div>
+                                ` : ''}
+                            </div>
+                            <div class="card-footer">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar me-1"></i>
+                                        ${new Date(ticket.createdAt.seconds * 1000).toLocaleDateString()}
+                                    </small>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteTicket('${ticket.id}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', ticketCard);
+            });
+        }
+
+        // Eliminar ticket
+        window.deleteTicket = async function(ticketId) {
+            if (confirm('¿Estás seguro de que deseas eliminar este ticket?')) {
+                try {
+                    await deleteDoc(doc(db, 'tickets', ticketId));
+                    showAlert('Ticket eliminado correctamente.', 'info');
+                    loadTickets();
+                } catch (error) {
+                    showAlert('Error al eliminar el ticket: ' + error.message, 'danger');
+                }
+            }
+        }
+
+        // Exportar a Excel
+        window.exportToExcel = function() {
+            if (ticketsData.length === 0) {
+                showAlert('No hay tickets para exportar.', 'warning');
+                return;
+            }
+
+            const exportData = ticketsData.map(ticket => ({
+                'Folio': ticket.folio,
+                'Título': ticket.title,
+                'Descripción': ticket.description,
+                'Prioridad': ticket.priority,
+                'Estado': ticket.status,
+                'Cliente': ticket.client,
+                'Ruta': ticket.route,
+                'Tipo de Bus': ticket.busType,
+                'Estado Solicitud': ticket.requestStatus || '',
+                'Creado por': ticket.createdBy,
+                'Fecha Creación': new Date(ticket.createdAt.seconds * 1000).toLocaleDateString()
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Tickets CONTERSA');
+            
+            const fileName = `Tickets_CONTERSA_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            showAlert('Archivo Excel exportado exitosamente.', 'success');
+        }
+
+        // Actualizar estadísticas
+        function updateStats() {
+            const total = ticketsData.length;
+            const open = ticketsData.filter(t => t.status === 'Abierto').length;
+            const closed = total - open;
+
+            document.getElementById('totalTickets').textContent = total;
+            document.getElementById('openTickets').textContent = open;
+            document.getElementById('closedTickets').textContent = closed;
+        }
+
+        // Inicializar gráfico
+        function initChart() {
+            const ctx = document.getElementById('ticketChart').getContext('2d');
+            ticketChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Alta', 'Media', 'Baja'],
+                    datasets: [{
+                        label: 'Cantidad de Tickets',
+                        data: [0, 0, 0],
+                        backgroundColor: [
+                            '#dc3545',
+                            '#ffc107',
+                            '#28a745'
+                        ],
+                        borderColor: [
+                            '#dc3545',
+                            '#ffc107',
+                            '#28a745'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Actualizar gráfico
+        function updateChart() {
+            if (!ticketChart) return;
+
+            const alta = ticketsData.filter(t => t.priority === 'Alta').length;
+            const media = ticketsData.filter(t => t.priority === 'Media').length;
+            const baja = ticketsData.filter(t => t.priority === 'Baja').length;
+
+            ticketChart.data.datasets[0].data = [alta, media, baja];
+            ticketChart.update();
+        }
+
+    </script>
+</body>
+</html>
